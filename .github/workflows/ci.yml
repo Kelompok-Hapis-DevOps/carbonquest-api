@@ -103,7 +103,7 @@ jobs:
   # ============================================================================
   sonar-analysis:
     name: SonarQube Quality Analysis
-    needs: build-and-test
+    # needs: build-and-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
