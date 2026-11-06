@@ -103,7 +103,7 @@ jobs:
   # ============================================================================
   sonar-analysis:
     name: SonarQube Quality Analysis
-    # needs: build-and-test
+    needs: build-and-test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -113,7 +113,6 @@ jobs:
 
       - name: Download Coverage Artifact
         uses: actions/download-artifact@v4
-        continue-on-error: true
         with:
           name: coverage-report
           path: coverage
