@@ -55,25 +55,6 @@ export class SessionRepository {
     return Boolean(existing);
   }
 
-  async hasCompletedQuizInRange(
-    userId: number,
-    quizId: number,
-    start: Date,
-    end: Date,
-    totalQuestions: number
-  ): Promise<boolean> {
-    const count = await prisma.sessions.count({
-      where: {
-        id_user: userId,
-        session_type: "quiz",
-        id_quiz: quizId,
-        start_time: { gte: start, lt: end },
-      },
-    });
-
-    return count >= totalQuestions;
-  }
-
   async getWeeklyPoints(userId: number, weeks: number = 4) {
     const { startDate, endDate } = this.getDateRange(weeks);
 

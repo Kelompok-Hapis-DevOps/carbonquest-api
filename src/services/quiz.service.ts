@@ -6,6 +6,7 @@ import {
 } from "../types/index.js";
 import { QuizRepository } from "../repositories/quiz.repository.js";
 import { SessionRepository } from "../repositories/session.repository.js";
+import { BadgeService } from "./badge.service.js";
 import { AppError } from "../middleware/error.middleware.js";
 import {
   getJakartaDayRange,
@@ -13,13 +14,40 @@ import {
   getJakartaWeekRange,
 } from "../utils/timezone.js";
 
+interface AttemptWindow {
+  start: Date;
+  end: Date;
+  label: string;
+}
+
+function getAttemptWindow(category: string | undefined, now: Date): AttemptWindow | null {
+  const normalized = category?.trim().toLowerCase();
+
+  if (normalized === "harian") {
+    return { ...getJakartaDayRange(now), label: "hari" };
+  }
+  if (normalized === "mingguan") {
+    return { ...getJakartaWeekRange(now), label: "minggu" };
+  }
+  if (normalized === "bulanan") {
+    return { ...getJakartaMonthRange(now), label: "bulan" };
+  }
+  return null;
+}
+
 export class QuizService {
   private repository: QuizRepository;
   private sessionRepository: SessionRepository;
+  private badgeService: BadgeService;
 
-  constructor() {
-    this.repository = new QuizRepository();
-    this.sessionRepository = new SessionRepository();
+  constructor(
+    repository: QuizRepository = new QuizRepository(),
+    sessionRepository: SessionRepository = new SessionRepository(),
+    badgeService: BadgeService = new BadgeService()
+  ) {
+    this.repository = repository;
+    this.sessionRepository = sessionRepository;
+    this.badgeService = badgeService;
   }
 
   async getAllQuizzes() {
@@ -67,6 +95,15 @@ export class QuizService {
   }
 
   async submitAnswer(data: SubmitQuizAnswerDTO, userId: number): Promise<QuizSubmissionResultDTO> {
+    if (
+      !Number.isInteger(data.id_question) ||
+      data.id_question <= 0 ||
+      !Number.isInteger(data.id_answer) ||
+      data.id_answer <= 0
+    ) {
+      throw new AppError("id_question and id_answer must be positive integers", 400);
+    }
+
     const answer = await this.repository.findAnswerById(data.id_answer);
 
     if (!answer) {
@@ -77,44 +114,38 @@ export class QuizService {
       throw new AppError("Answer does not belong to this question", 400);
     }
 
-    const quizCategory = answer.question.quiz?.category?.trim().toLowerCase();
-    const now = new Date();
+    const window = getAttemptWindow(
+      answer.question.quiz?.category ?? undefined,
+      new Date()
+    );
 
-    let range: { start: Date; end: Date } | null = null;
-    let limitMessage: string | null = null;
-
-    if (quizCategory === "harian") {
-      range = getJakartaDayRange(now);
-      limitMessage = "Quiz harian hanya bisa dijawab 1x per hari";
-    } else if (quizCategory === "mingguan") {
-      range = getJakartaWeekRange(now);
-      limitMessage = "Quiz mingguan hanya bisa dijawab 1x per minggu";
-    } else if (quizCategory === "bulanan") {
-      range = getJakartaMonthRange(now);
-      limitMessage = "Quiz bulanan hanya bisa dijawab 1x per bulan";
-    }
-
-    if (range && limitMessage) {
-      const quizId = answer.question.quiz?.id_quiz;
-      const totalQuestions = quizId
-        ? await this.repository.getQuestionCount(quizId)
-        : 0;
-
-      const alreadyAnswered = await this.sessionRepository.hasCompletedQuizInRange(
-        userId,
-        quizId!,
-        range.start,
-        range.end,
-        totalQuestions
-      );
+    // ponytail: check-then-insert race; add a unique (user, question, period) index only if concurrent submits matter.
+    if (window) {
+      const alreadyAnswered =
+        await this.sessionRepository.hasAnsweredQuizQuestionInRange(
+          userId,
+          data.id_question,
+          window.start,
+          window.end
+        );
 
       if (alreadyAnswered) {
-        throw new AppError(limitMessage, 400);
+        throw new AppError(
+          `Pertanyaan ini hanya bisa dijawab 1x per ${window.label}`,
+          400
+        );
       }
     }
 
-    const pointsEarned = answer.points || 0;
-    const session = await this.createQuizSession(userId, data.id_answer, answer.question.id_quiz, pointsEarned);
+    const pointsEarned = Math.max(0, Math.trunc(answer.points ?? 0));
+    const session = await this.createQuizSession(
+      userId,
+      data.id_answer,
+      answer.question.id_quiz,
+      pointsEarned
+    );
+
+    await this.badgeService.evaluateAndAward(userId);
 
     return {
       points_earned: pointsEarned,
@@ -138,5 +169,4 @@ export class QuizService {
       end_time: new Date().toISOString(),
     });
   }
-
 }
