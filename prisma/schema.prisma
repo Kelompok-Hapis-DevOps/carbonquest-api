@@ -21,8 +21,55 @@ model Users {
   // relations
   sessions      Sessions[]
   user_mission  User_Missions[]
+  badges        User_Badges[]
 
   @@map("Users")
+}
+
+model Badges {
+  id_badge    Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  icon        String?  @db.VarChar(255)
+  category    String   @db.VarChar(20) // points | mission | quiz | streak
+  threshold   Int      @default(0)
+
+  user_badges User_Badges[]
+
+  @@map("Badges")
+}
+
+model User_Badges {
+  id_user_badge Int      @id @default(autoincrement())
+  id_user       Int
+  id_badge      Int
+  earned_at     DateTime @default(now())
+
+  user  Users  @relation(fields: [id_user], references: [id_user], onDelete: Cascade)
+  badge Badges @relation(fields: [id_badge], references: [id_badge], onDelete: Cascade)
+
+  @@unique([id_user, id_badge])
+  @@index([id_user])
+  @@map("User_Badges")
+}
+
+model Audit_Logs {
+  id_log     Int      @id @default(autoincrement())
+  actor_type String   @db.VarChar(20) // user | org | anonymous
+  actor_id   Int?
+  action     String   @db.VarChar(100)
+  entity     String?  @db.VarChar(50)
+  entity_id  Int?
+  ip_address String?  @db.VarChar(45)
+  user_agent String?  @db.VarChar(255)
+  metadata   Json?
+  created_at DateTime @default(now())
+
+  @@index([created_at])
+  @@index([actor_type, actor_id])
+  @@index([action])
+  @@map("Audit_Logs")
 }
 
 model Organization {
