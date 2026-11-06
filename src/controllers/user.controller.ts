@@ -4,6 +4,7 @@ import { ResponseUtil } from "../utils/response.js";
 import { UserService } from "../services/user.service.js";
 import { parseId, buildFilePath } from "../utils/helpers.js";
 import { AppError } from "../middleware/error.middleware.js";
+import { recordAudit } from "../utils/audit.js";
 
 export class UserController {
   private service: UserService;
@@ -95,6 +96,7 @@ export class UserController {
       }
 
       await this.service.deleteUser(id);
+      await recordAudit(req, "user.delete", "user", id);
       ResponseUtil.success(res, "User deleted successfully", null);
     } catch (err) {
       next(err);

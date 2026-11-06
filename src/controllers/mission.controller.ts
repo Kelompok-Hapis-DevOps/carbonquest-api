@@ -7,6 +7,7 @@ import {
   parseId,
   buildFilePath,
 } from "../utils/helpers.js";
+import { recordAudit } from "../utils/audit.js";
 
 export class MissionController {
   private service: MissionService;
@@ -101,6 +102,7 @@ export class MissionController {
     try {
       const id = parseId(req.params.id);
       await this.service.deleteMission(id);
+      await recordAudit(req, "mission.delete", "mission", id);
       ResponseUtil.success(res, "Mission deleted successfully", null);
     } catch (err) {
       next(err);
