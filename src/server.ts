@@ -1,7 +1,16 @@
 import { createApp } from "./app.js";
+import { assertRequiredEnv, getPort } from "./config/env.js";
 
-const PORT = process.env.PORT || 4000;
+// Node >= 20.12 can load .env natively; ignore when the file is absent (e.g. CI).
+try {
+  process.loadEnvFile?.();
+} catch {
+  // no .env file: rely on real environment variables
+}
 
+assertRequiredEnv();
+
+const PORT = getPort();
 const app = createApp();
 
 app.listen(PORT, () => {
