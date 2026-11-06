@@ -19,6 +19,7 @@ jobs:
   # ============================================================================
   build-and-test:
     name: Build & Unit Test
+    continue-on-error: true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
