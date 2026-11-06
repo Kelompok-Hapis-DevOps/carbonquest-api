@@ -1,0 +1,163 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # ============================================================================
+  # STAGE 1: Build & Automated Testing (Coverage Target > 50%)
+  # ============================================================================
+  build-and-test:
+    name: Build & Unit Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Static Type Check (tsc)
+        run: npx tsc --noEmit
+
+      - name: Run Unit Tests with Coverage
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-dummy-jwt-secret-with-minimum-32-chars-long!' }}
+
+      - name: Compile TypeScript Build
+        run: npm run build
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ============================================================================
+  # STAGE 2: DevSecOps - Dependency Vulnerability Check
+  # ============================================================================
+  dependency-check:
+    name: Dependency Audit (DevSecOps)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run npm audit (Block on High / Critical)
+        run: npm audit --audit-level=high
+
+      - name: Audit Production Dependencies Only
+        run: npm audit --omit=dev
+
+  # ============================================================================
+  # STAGE 3: DevSecOps - Secret Leak Scanning
+  # ============================================================================
+  secret-scan:
+    name: Secret Leak Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks Secret Scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true # Warning mode agar commit history lama tidak memblokir demo
+
+  # ============================================================================
+  # STAGE 4: Code Quality Analysis (SonarQube / SonarCloud)
+  # ============================================================================
+  sonar-analysis:
+    name: SonarQube Quality Analysis
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download Coverage Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+
+      - name: Run SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+        continue-on-error: true # Berjalan opsional bila mahasiswa belum menambahkan SONAR_TOKEN di GitHub Secrets
+
+  # ============================================================================
+  # STAGE 5: Database Migration Verification
+  # ============================================================================
+  migration-verification:
+    name: Prisma Migration Verification
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: carbonquest
+          POSTGRES_PASSWORD: secretpassword
+          POSTGRES_DB: carbonquest_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Apply Migrations on PostgreSQL Service
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://carbonquest:secretpassword@localhost:5432/carbonquest_test?schema=public
