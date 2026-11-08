@@ -5,8 +5,8 @@ import { AppError } from "../middleware/error.middleware.js";
 export class ArticleService {
   private repository: ArticleRepository;
 
-  constructor() {
-    this.repository = new ArticleRepository();
+  constructor(repository: ArticleRepository = new ArticleRepository()) {
+    this.repository = repository;
   }
 
   async getAllArticles() {

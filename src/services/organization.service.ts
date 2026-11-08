@@ -6,8 +6,8 @@ import bcrypt from "bcryptjs";
 export class OrganizationService {
   private repository: OrganizationRepository;
 
-  constructor() {
-    this.repository = new OrganizationRepository();
+  constructor(repository: OrganizationRepository = new OrganizationRepository()) {
+    this.repository = repository;
   }
 
   async getAllOrganizations(): Promise<Omit<OrganizationDTO, "password">[]> {

@@ -15,9 +15,12 @@ export class AuthService {
   private userRepository: UserRepository;
   private organizationRepository: OrganizationRepository;
 
-  constructor() {
-    this.userRepository = new UserRepository();
-    this.organizationRepository = new OrganizationRepository();
+  constructor(
+    userRepository: UserRepository = new UserRepository(),
+    organizationRepository: OrganizationRepository = new OrganizationRepository()
+  ) {
+    this.userRepository = userRepository;
+    this.organizationRepository = organizationRepository;
   }
 
   async registerUser(data: CreateUserDTO): Promise<{ user: Omit<UserDTO, "password">; token: string }> {
