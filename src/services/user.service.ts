@@ -6,8 +6,8 @@ import bcrypt from "bcryptjs";
 export class UserService {
   private repository: UserRepository;
 
-  constructor() {
-    this.repository = new UserRepository();
+  constructor(repository: UserRepository = new UserRepository()) {
+    this.repository = repository;
   }
 
   async getAllUsers(): Promise<UserDTO[]> {

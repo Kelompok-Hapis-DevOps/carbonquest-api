@@ -4,8 +4,8 @@ import { SessionRepository } from "../repositories/session.repository.js";
 export class SessionService {
   private repository: SessionRepository;
 
-  constructor() {
-    this.repository = new SessionRepository();
+  constructor(repository: SessionRepository = new SessionRepository()) {
+    this.repository = repository;
   }
 
   async createSession(data: CreateSessionDTO, userId: number) {

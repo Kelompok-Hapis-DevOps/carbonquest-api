@@ -19,8 +19,8 @@ export async function recordAudit(
     action,
     entity: entity ?? null,
     entity_id: entityId ?? null,
-    ip_address: req.ip ?? req.socket.remoteAddress ?? null,
-    user_agent: req.get("user-agent") ?? null,
+    ip_address: req.ip ?? req.socket?.remoteAddress ?? null,
+    user_agent: req.get?.("user-agent") ?? null,
     metadata: metadata ?? null,
   });
 }

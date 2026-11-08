@@ -5,8 +5,8 @@ import { AppError } from "../middleware/error.middleware.js";
 export class MissionService {
   private repository: MissionRepository;
 
-  constructor() {
-    this.repository = new MissionRepository();
+  constructor(repository: MissionRepository = new MissionRepository()) {
+    this.repository = repository;
   }
 
   async getAllMissions() {

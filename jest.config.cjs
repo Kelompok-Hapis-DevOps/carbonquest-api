@@ -18,9 +18,12 @@ module.exports = {
   setupFiles: ["<rootDir>/tests/setup.ts"],
   collectCoverageFrom: [
     "src/services/**/*.ts",
+    "src/controllers/**/*.ts",
+    "src/middleware/**/*.ts",
     "src/utils/**/*.ts",
     "src/config/**/*.ts",
     "!src/config/swagger.ts",
+    "!src/middleware/upload.middleware.ts",
   ],
   coverageDirectory: "coverage",
   coverageReporters: ["text", "lcov", "text-summary"],
