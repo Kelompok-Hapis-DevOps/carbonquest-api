@@ -1,9 +1,8 @@
 import { NextFunction, Request, RequestHandler, Response } from "express";
 import jwt from "jsonwebtoken";
+import { getJwtSecret } from "../config/env.js";
 import { AuthenticatedRequest, JwtPayload } from "../types/index.js";
 import { ResponseUtil } from "../utils/response.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "dev-secret-ganti-di-prod";
 
 export const authMiddleware = (
   requiredRole?: "user" | "org"
@@ -19,7 +18,7 @@ export const authMiddleware = (
     const token = authHeader.split(" ")[1];
 
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as unknown as JwtPayload;
+      const decoded = jwt.verify(token, getJwtSecret()) as unknown as JwtPayload;
       (req as AuthenticatedRequest).user = decoded;
 
       if (requiredRole && decoded.role !== requiredRole) {
@@ -38,5 +37,5 @@ export const authMiddleware = (
 export const generateToken = (
   payload: Omit<JwtPayload, "iat" | "exp">
 ): string => {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: "7d" });
 };

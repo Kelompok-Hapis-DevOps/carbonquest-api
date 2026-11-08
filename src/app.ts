@@ -1,12 +1,15 @@
 import cors from "cors";
 import express, { Application, Request, Response } from "express";
+import helmet from "helmet";
 import { apiReference } from "@scalar/express-api-reference";
 import { swaggerSpec } from "./config/swagger.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import { authLimiter, limiter } from "./middleware/rate-limit.middleware.js";
 
 import articleRoutes from "./routes/article.routes.js";
+import auditRoutes from "./routes/audit.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import { badgeRoutes, userBadgeRoutes } from "./routes/badge.routes.js";
 import fileRoutes from "./routes/file.routes.js";
 import missionRoutes from "./routes/mission.routes.js";
 import organizationRoutes from "./routes/organization.routes.js";
@@ -20,9 +23,13 @@ export const createApp = (): Application => {
 
   app.set("trust proxy", 1);
 
+  // CSP and COEP are disabled so the Scalar API docs page keeps working.
+  app.use(
+    helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false })
+  );
   app.use(limiter);
   app.use(cors());
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
 
   /**
    * @openapi
@@ -75,8 +82,11 @@ export const createApp = (): Application => {
   app.use("/missions", missionRoutes);
   app.use("/user-missions", userMissionRoutes);
   app.use("/quizzes", quizRoutes);
+  app.use("/badges", badgeRoutes);
+  app.use("/audit-logs", auditRoutes);
   app.use("/me", sessionRoutes);
   app.use("/me", userMissionRoutes);
+  app.use("/me", userBadgeRoutes);
   app.use("/articles", articleRoutes);
 
   app.use(errorHandler);
