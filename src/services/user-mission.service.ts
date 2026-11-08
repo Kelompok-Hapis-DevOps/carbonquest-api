@@ -1,5 +1,6 @@
 import { CreateUserMissionDTO, UpdateUserMissionDTO } from "../types/index.js";
 import { UserMissionRepository } from "../repositories/user-mission.repository.js";
+import { BadgeService } from "./badge.service.js";
 
 interface MissionUpdateData {
   status?: string;
@@ -9,9 +10,14 @@ interface MissionUpdateData {
 
 export class UserMissionService {
   private repository: UserMissionRepository;
+  private badgeService: BadgeService;
 
-  constructor() {
-    this.repository = new UserMissionRepository();
+  constructor(
+    repository: UserMissionRepository = new UserMissionRepository(),
+    badgeService: BadgeService = new BadgeService()
+  ) {
+    this.repository = repository;
+    this.badgeService = badgeService;
   }
 
   async startMission(data: CreateUserMissionDTO, userId: number) {
@@ -25,7 +31,13 @@ export class UserMissionService {
       completed_time: data.completed_time ? new Date(data.completed_time) : undefined,
     };
 
-    return await this.repository.update(id, updateData);
+    const updated = await this.repository.update(id, updateData);
+
+    if (updated.status === "completed" || updated.completed_time) {
+      await this.badgeService.evaluateAndAward(updated.id_user);
+    }
+
+    return updated;
   }
 
   async getUserMissions(userId: number) {
