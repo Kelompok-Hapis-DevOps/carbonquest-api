@@ -7,6 +7,7 @@ import {
 import { ResponseUtil } from "../utils/response.js";
 import { QuizService } from "../services/quiz.service.js";
 import { parseId } from "../utils/helpers.js";
+import { recordAudit } from "../utils/audit.js";
 
 export class QuizController {
   private service: QuizService;
@@ -78,6 +79,7 @@ export class QuizController {
     try {
       const id = parseId(req.params.id);
       await this.service.deleteQuiz(id);
+      await recordAudit(req, "quiz.delete", "quiz", id);
       ResponseUtil.success(res, "Quiz deleted successfully", null);
     } catch (err) {
       next(err);

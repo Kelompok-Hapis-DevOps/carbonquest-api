@@ -7,6 +7,7 @@ import {
   parseId,
   buildFilePath,
 } from "../utils/helpers.js";
+import { recordAudit } from "../utils/audit.js";
 
 export class ArticleController {
   private service: ArticleService;
@@ -105,6 +106,7 @@ export class ArticleController {
     try {
       const id = parseId(req.params.id);
       await this.service.deleteArticle(id);
+      await recordAudit(req, "article.delete", "article", id);
       ResponseUtil.success(res, "Article deleted successfully", null);
     } catch (err) {
       next(err);
